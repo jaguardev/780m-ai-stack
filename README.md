@@ -1,4 +1,4 @@
-# Docker Stack: Ubuntu 25.10 + ROCm nightly + PyTorch + ComfyUI + Ollama + Open WebUI
+# Docker Stack: Ubuntu + ROCm nightly + PyTorch + ComfyUI + Ollama + Open WebUI
 
 After experimenting with models, drivers, kernel versions, and other software, I found a reasonably stable and performant setup for AI workloads on my ThinkPad T14 Gen 4 (AMD 7840U, Radeon 780M, 32 GB RAM).
 
@@ -14,7 +14,7 @@ Flash/Sage attention often provides little or no speedup. Triton autotune can ta
 
 The 780M supports bf16, fp16, int8, and int4.
 
-At the same time, fitting 16-bit models into shared memory without offloading is difficult, and offloading over DDR5/shared bus is slow.
+At the same time, fitting 16-bit models into VRAM memory without offloading is difficult, and offloading over DDR5/shared bus is slow.
 
 Because of that, FP8 models can become unexpectedly slow. They are often dequantized to FP16 or processed in a software-heavy path.
 
@@ -37,7 +37,7 @@ A stack for running local AI on **AMD Radeon 780M (iGPU)** in best-effort mode:
 
 ## 3. Host Requirements
 
-- Recent driver stack (I used preview version: https://instinct.docs.amd.com/projects/amdgpu-docs/en/31.10.0-preview/install/detailed-install/package-manager/package-manager-ubuntu.html)
+- Recent driver stack (I used [preview version](https://instinct.docs.amd.com/projects/amdgpu-docs/en/31.10.0-preview/install/detailed-install/package-manager/package-manager-ubuntu.html))
 - Linux host with available `/dev/kfd` and `/dev/dri`
 - Docker Engine + Docker Compose plugin
 - Swap and sufficient system RAM are recommended (can be lower depending on expected workload)
@@ -61,7 +61,7 @@ A stack for running local AI on **AMD Radeon 780M (iGPU)** in best-effort mode:
     sudo update-grub
     *restart*
     ```
-- Access group setup. udev rules are recommended: https://rocm.docs.amd.com/en/7.11.0-preview/install/rocm.html?fam=radeon&gpu=rx-7700&os=ubuntu&os-version=24.04&i=pip#configure-permissions-for-gpu-access-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-os-windows-i-pip-i-tar-i-pkgman-os-ubuntu-os-debian-os-rhel-os-rocky-linux-os-oracle-linux-os-sles-os-ubuntu-os-debian-i-pkgman-i-pip-i-tar-os-rhel-os-rocky-linux-os-oracle-linux-os-sles-i-pkgman-i-pip-i-tar-os-windows-fam-ryzen-os-ubuntu-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-sles-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-sles-i-pkgman-os-oracle-linux-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-oracle-linux-os-rocky-linux-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-i-pkgman-i-pip-i-tar-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-i-pip-os-ubuntu-os-version-24-04-os-version-22-04-os-debian-os-version-13-os-rhel-os-oracle-linux-os-rocky-linux-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-8-os-sles-os-version-16-0-os-version-15-7-os-windows-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles
+- Access group setup. udev rules are recommended: [Configure permissions for GPU access](https://rocm.docs.amd.com/en/7.11.0-preview/install/rocm.html?fam=radeon&gpu=rx-7700&os=ubuntu&os-version=24.04&i=pip#configure-permissions-for-gpu-access-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-os-windows-i-pip-i-tar-i-pkgman-os-ubuntu-os-debian-os-rhel-os-rocky-linux-os-oracle-linux-os-sles-os-ubuntu-os-debian-i-pkgman-i-pip-i-tar-os-rhel-os-rocky-linux-os-oracle-linux-os-sles-i-pkgman-i-pip-i-tar-os-windows-fam-ryzen-os-ubuntu-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-sles-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-sles-i-pkgman-os-oracle-linux-os-rhel-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-oracle-linux-os-rocky-linux-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-9-4-os-version-8-10-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-i-pkgman-i-pip-i-tar-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles-i-pip-os-ubuntu-os-version-24-04-os-version-22-04-os-debian-os-version-13-os-rhel-os-oracle-linux-os-rocky-linux-os-version-10-1-os-version-10-0-os-version-9-7-os-version-9-6-os-version-8-os-sles-os-version-16-0-os-version-15-7-os-windows-os-ubuntu-os-debian-os-rhel-os-oracle-linux-os-rocky-linux-os-sles)
 - For Ollama on host, only the binary is needed:
     ```bash
     wget https://ollama.com/download/ollama-linux-amd64.tar.zst
@@ -93,9 +93,9 @@ docker compose stop comfyui ollama open-webui
 
 ## 6. Access
 
-- ComfyUI: `http://localhost:8188`
-- Ollama: `http://localhost:11434`
-- Open WebUI: `http://localhost:8080`
+- ComfyUI: http://localhost:8188
+- Ollama: http://localhost:11434
+- Open WebUI: http://localhost:8080
 
 ## 7. Persistent Data
 
@@ -132,7 +132,7 @@ docker logs open-webui --tail 100
 - Ollama: https://hub.docker.com/r/ollama/ollama
 - Open WebUI: https://github.com/open-webui/open-webui
 
-# Installing ComfyUI-Manager
+## 11. Installing ComfyUI-Manager
 
 After first launch, when all `VOLUME` paths are bound locally on host:
 
@@ -143,11 +143,11 @@ sudo git clone https://github.com/ltdrdata/ComfyUI-Manager
 docker compose restart comfyui
 ```
 
-# ComfyUI Launch Parameters
+## 12. ComfyUI Launch Parameters
 
-I have several templates:
+I have several templates for docker-compose.yaml:
 
-Balanced variant. Uses offloading to RAM.
+(Default) Balanced variant. Uses offloading to RAM.
 ```
     command:
       - python
@@ -160,12 +160,36 @@ Balanced variant. Uses offloading to RAM.
       - "8188"
 ```
 
-(Default) More aggressive variant. Keeps CLIP and model in VRAM while VAE works on CPU.
+ More aggressive variant. Keeps CLIP and model in VRAM while VAE works on CPU.
 ```
-"python", "main.py", "--use-sage-attention", "--gpu-only", "--cpu-vae", "--listen", "0.0.0.0", "--port", "8188"
+    command:
+      - python
+      - main.py
+      - --use-sage-attention
+      - --cpu-vae
+      - --gpu-only
+      - --listen
+      - 0.0.0.0
+      - --port
+      - "8188"
 ```
 
 Most aggressive and fastest variant. Disables offloading and runs everything on GPU.
 ```
-"python", "main.py", "--use-sage-attention", "--disable-smart-memory", "--reserve-vram", "1", "--gpu-only", "--listen", "0.0.0.0", "--port", "8188"
+    command:
+      - python
+      - main.py
+      - --use-sage-attention
+      - --disable-smart-memory
+      - --reserve-vram
+      - "1"
+      - --gpu-only
+      - --listen
+      - 0.0.0.0
+      - --port
+      - "8188"
 ```
+
+## 13. Dockerhub images
+
+https://hub.docker.com/r/vladchernikov/rocm
