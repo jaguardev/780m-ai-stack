@@ -1,0 +1,4 @@
+# Keep build context minimal and deterministic.
+# If you later add COPY instructions, extend this allowlist.
+*
+!Dockerfile

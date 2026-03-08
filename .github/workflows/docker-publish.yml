@@ -1,0 +1,114 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - Dockerfile
+      - .github/workflows/docker-publish.yml
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: "Docker image name (without tag)"
+        required: false
+        default: "vladchernikov/rocm"
+        type: string
+      rocm_tag:
+        description: "Tag for rocm target"
+        required: false
+        default: "nightly-gtx110x"
+        type: string
+      pytorch_tag:
+        description: "Tag for pytorch target"
+        required: false
+        default: "nightly-gtx110x-pytorch"
+        type: string
+      comfyui_tag:
+        description: "Tag for comfyui target"
+        required: false
+        default: "nightly-gtx110x-comfyui"
+        type: string
+      rocm_downloads_url:
+        description: "ROCm wheels index URL"
+        required: false
+        default: "https://rocm.nightlies.amd.com/v2/gfx110X-all/"
+        type: string
+
+jobs:
+  docker:
+    name: Build and Push (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: rocm
+            default_tag: nightly-gtx110x
+          - target: pytorch
+            default_tag: nightly-gtx110x-pytorch
+          - target: comfyui
+            default_tag: nightly-gtx110x-comfyui
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Resolve image and tag
+        id: meta
+        shell: bash
+        run: |
+          image_name="${{ github.event.inputs.image_name }}"
+          if [ -z "$image_name" ]; then
+            image_name="${{ secrets.DOCKERHUB_USERNAME }}/rocm"
+          fi
+
+          case "${{ matrix.target }}" in
+            rocm)
+              tag="${{ github.event.inputs.rocm_tag }}"
+              ;;
+            pytorch)
+              tag="${{ github.event.inputs.pytorch_tag }}"
+              ;;
+            comfyui)
+              tag="${{ github.event.inputs.comfyui_tag }}"
+              ;;
+          esac
+
+          if [ -z "$tag" ]; then
+            tag="${{ matrix.default_tag }}"
+          fi
+
+          rocm_downloads_url="${{ github.event.inputs.rocm_downloads_url }}"
+          if [ -z "$rocm_downloads_url" ]; then
+            rocm_downloads_url="https://rocm.nightlies.amd.com/v2/gfx110X-all/"
+          fi
+
+          echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push ${{ matrix.target }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.tag }}
+          build-args: |
+            ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
