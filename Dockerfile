@@ -1,4 +1,4 @@
-FROM ubuntu:25.10 as rocm
+FROM ubuntu:26.04 as rocm
 
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
@@ -7,6 +7,7 @@ RUN apt update && apt install -y --no-install-recommends \
     libgfortran5 \
     gfortran \
     libatomic1 \
+    libquadmath \
     python3.13 \
     python3.13-venv \
     python3-pip \
