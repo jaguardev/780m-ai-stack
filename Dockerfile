@@ -8,7 +8,7 @@ RUN apt update && apt install -y --no-install-recommends \
     gfortran \
     libatomic1 \
     libquadmath0 \
-    python3.13-venv \
+    python3-venv \
     python3-pip \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
