@@ -45,6 +45,10 @@ services:
       - ./volumes/comfyui/output:/opt/ComfyUI/output
       - ./volumes/comfyui/custom_nodes:/opt/ComfyUI/custom_nodes
       - ./volumes/comfyui/user:/opt/ComfyUI/user
+    environment:
+      ROCM_SDK_LIB: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib"
+      LIBRARY_PATH: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib"
+      LD_LIBRARY_PATH: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib:/opt/rocm/lib:/opt/rocm/lib64"
     command:
       - python
       - main.py
