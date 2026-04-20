@@ -43,7 +43,7 @@ services:
       - "8188"
 
   ollama:
-    image: vladchernikov/rocm:nightly-gfx110x-ollama
+    image: vladchernikov/rocm:nightly-gfx110X-ollama
     build:
       context: .
       target: ollama

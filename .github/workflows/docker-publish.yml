@@ -1,12 +1,6 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - Dockerfile
-      - .github/workflows/docker-publish.yml
   workflow_dispatch:
     inputs:
       image_name:
@@ -17,12 +11,12 @@ on:
       ollama_tag:
         description: "Tag for ollama target"
         required: false
-        default: "nightly-gtx110x-ollama"
+        default: ""
         type: string
       comfyui_tag:
         description: "Tag for comfyui target"
         required: false
-        default: "nightly-gtx110x-comfyui"
+        default: ""
         type: string
       rocm_downloads_url:
         description: "ROCm wheels index URL"
@@ -91,14 +85,7 @@ jobs:
           fi
 
           ollama_tag="${{ github.event.inputs.ollama_tag }}"
-          if [ -z "$ollama_tag" ]; then
-            ollama_tag="nightly-gtx110x-ollama"
-          fi
-
           comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
-          if [ -z "$comfyui_tag" ]; then
-            comfyui_tag="nightly-gtx110x-comfyui"
-          fi
 
           rocm_downloads_url="${{ github.event.inputs.rocm_downloads_url }}"
           if [ -z "$rocm_downloads_url" ]; then
@@ -108,6 +95,14 @@ jobs:
           rocm_version="${{ github.event.inputs.rocm_version }}"
           if [ -z "$rocm_version" ]; then
             rocm_version="7.13.0a20260416"
+          fi
+
+          if [ -z "$ollama_tag" ]; then
+            ollama_tag="${rocm_version}-ollama"
+          fi
+
+          if [ -z "$comfyui_tag" ]; then
+            comfyui_tag="${rocm_version}-${torch_version}-comfyui"
           fi
 
           gpu_arch="${{ github.event.inputs.gpu_arch }}"
@@ -138,6 +133,8 @@ jobs:
           echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
           echo "ollama_tag=$ollama_tag" >> "$GITHUB_OUTPUT"
           echo "comfyui_tag=$comfyui_tag" >> "$GITHUB_OUTPUT"
+          echo "ollama_nightly_tag=nightly-gfx110X-ollama" >> "$GITHUB_OUTPUT"
+          echo "comfyui_nightly_tag=nightly-gfx110X-comfyui" >> "$GITHUB_OUTPUT"
           echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
           echo "rocm_version=$rocm_version" >> "$GITHUB_OUTPUT"
           echo "gpu_arch=$gpu_arch" >> "$GITHUB_OUTPUT"
@@ -153,7 +150,9 @@ jobs:
           file: ./Dockerfile
           target: ollama
           push: true
-          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_tag }}
+          tags: |
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_tag }}
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_nightly_tag }}
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             ROCM_VERSION=${{ steps.meta.outputs.rocm_version }}
@@ -172,7 +171,9 @@ jobs:
           file: ./Dockerfile
           target: comfyui
           push: true
-          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_tag }}
+          tags: |
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_tag }}
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_nightly_tag }}
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             ROCM_VERSION=${{ steps.meta.outputs.rocm_version }}
