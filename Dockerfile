@@ -1,11 +1,21 @@
-FROM ubuntu:26.04 as rocm
+ARG ROCM_DOWNLOADS_URL=https://rocm.nightlies.amd.com/v2/gfx110X-all/
+ARG ROCM_VERSION=7.13.0a20260416
+ARG GPU_ARCH=gfx1103
+ARG TORCH_VERSION=2.11.0+rocm7.13.0a20260416
+ARG TORCHVISION_VERSION=0.26.0+rocm7.13.0a20260416
+ARG TORCHAUDIO_VERSION=2.11.0+rocm7.13.0a20260416
+ARG TRITON_VERSION=3.6.0+rocm7.13.0a20260416
+
+FROM ubuntu:26.04 as rocm-devel
+
+ARG ROCM_DOWNLOADS_URL
+ARG ROCM_VERSION
 
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     cmake \
     libgfortran5 \
-    gfortran \
     libatomic1 \
     libquadmath0 \
     python3-venv \
@@ -15,8 +25,6 @@ RUN apt update && apt install -y --no-install-recommends \
 
 WORKDIR /root
 
-VOLUME [ "/root/.venv" ]
-
 ENV VIRTUAL_ENV=/root/.venv
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -24,29 +32,104 @@ RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-ARG ROCM_DOWNLOADS_URL=https://rocm.nightlies.amd.com/v2/gfx110X-all/
-ENV ROCM_DOWNLOADS_URL=${ROCM_DOWNLOADS_URL}
+RUN pip install --no-cache-dir --index-url ${ROCM_DOWNLOADS_URL} "rocm[libraries,devel]==${ROCM_VERSION}"
+RUN rocm-sdk init
 
-RUN pip install --no-cache-dir --index-url ${ROCM_DOWNLOADS_URL} "rocm[libraries,devel]"
+ENV ROCM_PATH=/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel
+ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
+ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
 
 
-FROM rocm as pytorch
+FROM ubuntu:26.04 as rocm
+
+RUN apt update && apt install -y --no-install-recommends \
+    ca-certificates \
+    libgfortran5 \
+    libatomic1 \
+    libquadmath0 \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_core/. /opt/rocm/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_gfx110X_all/lib/. /opt/rocm/lib/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_gfx110X_all/share/. /opt/rocm/share/
+
+ENV ROCM_PATH=/opt/rocm
+ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
+ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
+
+
+FROM rocm-devel as ollama-builder
+
+ARG GPU_ARCH
+
+RUN apt update && apt install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    golang-go \
+    ninja-build \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root
+
+RUN git clone https://github.com/ollama/ollama.git /root/ollama
+
+WORKDIR /root/ollama
+
+RUN cmake -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_PREFIX_PATH=$ROCM_PATH \
+    -DCMAKE_HIP_PLATFORM=amd \
+    -DGPU_TARGETS=${GPU_ARCH} \
+    -DGGML_HIP=ON \
+    -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
+    -DCMAKE_INSTALL_RPATH=$ROCM_PATH/lib:$ROCM_PATH/lib/rocm_sysdeps/lib
+
+RUN cmake --build build --config Release
+
+RUN go build -o ollama .
+
+
+FROM rocm as ollama
+
+VOLUME [ "/root/.ollama" ]
+
+COPY --from=ollama-builder /root/ollama/ollama /usr/local/bin/ollama
+COPY --from=ollama-builder /root/ollama/build/lib/ollama /usr/local/lib/ollama
+
+ENV LD_LIBRARY_PATH=/usr/local/lib/ollama:$LD_LIBRARY_PATH
+
+ENV OLLAMA_HOST=0.0.0.0:11434
+EXPOSE 11434
+ENTRYPOINT ["/usr/local/bin/ollama"]
+CMD ["serve"]
+
+
+FROM rocm-devel as pytorch
+
+ARG ROCM_DOWNLOADS_URL
+ARG TORCH_VERSION
+ARG TORCHVISION_VERSION
+ARG TORCHAUDIO_VERSION
+ARG TRITON_VERSION
 
 VOLUME [ "/root/.triton" ]
 
 RUN apt update && apt install -y --no-install-recommends \
     git \
+    python3-venv \
+    python3-pip \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir \
     packaging \
-    setuptools \
     wheel
 
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
-    torch torchvision torchaudio triton
+    torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} torchaudio==${TORCHAUDIO_VERSION} triton==${TRITON_VERSION}
 
 RUN git clone -b main_perf https://github.com/ROCm/flash-attention.git \
     && cd flash-attention \
@@ -75,8 +158,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # this manager does not work well. will install it from github release instead.
 # RUN pip install --no-cache-dir -r manager_requirements.txt
 
-# ENV HSA_OVERRIDE_GFX_VERSION=11.0.1
-# ENV TRITON_ROCM_AMD_TARGET=gfx1101
 # ENV FLASH_ATTENTION_TRITON_AMD_AUTOTUNE=TRUE
 # ENV PYTORCH_TUNABLEOP_ENABLED=1
 ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
@@ -85,7 +166,7 @@ ENV MIOPEN_FIND_MODE=2
 ENV AMD_SERIALIZE_KERNEL=0
 ENV AMD_LOG_LEVEL=0
 ENV TORCH_CUDNN_ENABLED=0
-ENV PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512
+ENV PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512,expandable_segments:True
 
 VOLUME [ "/opt/ComfyUI/custom_nodes", "/opt/ComfyUI/models", "/opt/ComfyUI/input", "/opt/ComfyUI/output", "/opt/ComfyUI/user" ]
 

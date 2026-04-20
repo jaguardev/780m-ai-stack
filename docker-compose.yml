@@ -1,31 +1,18 @@
 name: ai-stack
 
 services:
-  rocm:
-    image: vladchernikov/rocm:nightly-gtx110x
-    profiles: [build]
-    build:
-      context: .
-      target: rocm
-      args:
-        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
-
-  pytorch:
-    image: vladchernikov/rocm:nightly-gtx110x-pytorch
-    profiles: [build]
-    build:
-      context: .
-      target: pytorch
-      args:
-        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
 
   comfyui:
-    image: vladchernikov/rocm:nightly-gtx110x-comfyui
+    image: vladchernikov/rocm:nightly-gfx110X-comfyui
     build:
       context: .
       target: comfyui
       args:
         ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
+        TORCH_VERSION: 2.11.0+rocm7.13.0a20260416
+        TORCHVISION_VERSION: 0.26.0+rocm7.13.0a20260416
+        TORCHAUDIO_VERSION: 2.11.0+rocm7.13.0a20260416
+        TRITON_VERSION: 3.6.0+rocm7.13.0a20260416
     container_name: comfyui
     restart: unless-stopped
     init: true
@@ -45,10 +32,6 @@ services:
       - ./volumes/comfyui/output:/opt/ComfyUI/output
       - ./volumes/comfyui/custom_nodes:/opt/ComfyUI/custom_nodes
       - ./volumes/comfyui/user:/opt/ComfyUI/user
-    environment:
-      ROCM_SDK_LIB: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib"
-      LIBRARY_PATH: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib"
-      LD_LIBRARY_PATH: "/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/lib:/opt/rocm/lib:/opt/rocm/lib64"
     command:
       - python
       - main.py
@@ -60,7 +43,14 @@ services:
       - "8188"
 
   ollama:
-    image: ollama/ollama:rocm
+    image: vladchernikov/rocm:nightly-gfx110x-ollama
+    build:
+      context: .
+      target: ollama
+      args:
+        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
+        ROCM_VERSION: 7.13.0a20260416
+        GPU_ARCH: gfx1103
     container_name: ollama
     restart: unless-stopped
     init: true
@@ -72,16 +62,13 @@ services:
       - /dev/kfd
       - /dev/dri
     environment:
-      HSA_OVERRIDE_GFX_VERSION: "11.0.2"
-      OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_MAX_LOADED_MODELS: "1"
-      # OLLAMA_VULKAN: "1"
-      # ROCR_VISIBLE_DEVICES: "0"
+      OLLAMA_NUM_PARALLEL: "6"
+      OLLAMA_MAX_LOADED_MODELS: "3"
       OLLAMA_FLASH_ATTENTION: "1"
-      GGML_HIP_FORCE_MMQ: "1"
-      GGML_HIP_USE_GRAPHS: "0"
-      OLLAMA_BATCH_SIZE: "512"
+      OLLAMA_BATCH_SIZE: "1024"
       OLLAMA_CONTEXT_LENGTH: "8192"
+      GGML_HIP_FORCE_MMQ: "1"
+      GGML_HIP_USE_GRAPHS: "1"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 30s

@@ -14,15 +14,10 @@ on:
         required: false
         default: "vladchernikov/rocm"
         type: string
-      rocm_tag:
-        description: "Tag for rocm target"
+      ollama_tag:
+        description: "Tag for ollama target"
         required: false
-        default: "nightly-gtx110x"
-        type: string
-      pytorch_tag:
-        description: "Tag for pytorch target"
-        required: false
-        default: "nightly-gtx110x-pytorch"
+        default: "nightly-gtx110x-ollama"
         type: string
       comfyui_tag:
         description: "Tag for comfyui target"
@@ -34,21 +29,41 @@ on:
         required: false
         default: "https://rocm.nightlies.amd.com/v2/gfx110X-all/"
         type: string
+      rocm_version:
+        description: "ROCm version"
+        required: false
+        default: "7.13.0a20260416"
+        type: string
+      gpu_arch:
+        description: "GPU architecture"
+        required: false
+        default: "gfx1103"
+        type: string
+      torch_version:
+        description: "PyTorch version"
+        required: false
+        default: "2.11.0+rocm7.13.0a20260416"
+        type: string
+      torchvision_version:
+        description: "TorchVision version"
+        required: false
+        default: "0.26.0+rocm7.13.0a20260416"
+        type: string
+      torchaudio_version:
+        description: "TorchAudio version"
+        required: false
+        default: "2.11.0+rocm7.13.0a20260416"
+        type: string
+      triton_version:
+        description: "Triton version"
+        required: false
+        default: "3.6.0+rocm7.13.0a20260416"
+        type: string
 
 jobs:
   docker:
-    name: Build and Push (${{ matrix.target }})
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: rocm
-            default_tag: nightly-gtx110x
-          - target: pytorch
-            default_tag: nightly-gtx110x-pytorch
-          - target: comfyui
-            default_tag: nightly-gtx110x-comfyui
 
     permissions:
       contents: read
@@ -66,7 +81,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Resolve image and tag
+      - name: Resolve build metadata
         id: meta
         shell: bash
         run: |
@@ -75,20 +90,14 @@ jobs:
             image_name="${{ secrets.DOCKERHUB_USERNAME }}/rocm"
           fi
 
-          case "${{ matrix.target }}" in
-            rocm)
-              tag="${{ github.event.inputs.rocm_tag }}"
-              ;;
-            pytorch)
-              tag="${{ github.event.inputs.pytorch_tag }}"
-              ;;
-            comfyui)
-              tag="${{ github.event.inputs.comfyui_tag }}"
-              ;;
-          esac
+          ollama_tag="${{ github.event.inputs.ollama_tag }}"
+          if [ -z "$ollama_tag" ]; then
+            ollama_tag="nightly-gtx110x-ollama"
+          fi
 
-          if [ -z "$tag" ]; then
-            tag="${{ matrix.default_tag }}"
+          comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
+          if [ -z "$comfyui_tag" ]; then
+            comfyui_tag="nightly-gtx110x-comfyui"
           fi
 
           rocm_downloads_url="${{ github.event.inputs.rocm_downloads_url }}"
@@ -96,19 +105,81 @@ jobs:
             rocm_downloads_url="https://rocm.nightlies.amd.com/v2/gfx110X-all/"
           fi
 
-          echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
+          rocm_version="${{ github.event.inputs.rocm_version }}"
+          if [ -z "$rocm_version" ]; then
+            rocm_version="7.13.0a20260416"
+          fi
 
-      - name: Build and push ${{ matrix.target }}
+          gpu_arch="${{ github.event.inputs.gpu_arch }}"
+          if [ -z "$gpu_arch" ]; then
+            gpu_arch="gfx1103"
+          fi
+
+          torch_version="${{ github.event.inputs.torch_version }}"
+          if [ -z "$torch_version" ]; then
+            torch_version="2.11.0+rocm7.13.0a20260416"
+          fi
+
+          torchvision_version="${{ github.event.inputs.torchvision_version }}"
+          if [ -z "$torchvision_version" ]; then
+            torchvision_version="0.26.0+rocm7.13.0a20260416"
+          fi
+
+          torchaudio_version="${{ github.event.inputs.torchaudio_version }}"
+          if [ -z "$torchaudio_version" ]; then
+            torchaudio_version="2.11.0+rocm7.13.0a20260416"
+          fi
+
+          triton_version="${{ github.event.inputs.triton_version }}"
+          if [ -z "$triton_version" ]; then
+            triton_version="3.6.0+rocm7.13.0a20260416"
+          fi
+
+          echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
+          echo "ollama_tag=$ollama_tag" >> "$GITHUB_OUTPUT"
+          echo "comfyui_tag=$comfyui_tag" >> "$GITHUB_OUTPUT"
+          echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
+          echo "rocm_version=$rocm_version" >> "$GITHUB_OUTPUT"
+          echo "gpu_arch=$gpu_arch" >> "$GITHUB_OUTPUT"
+          echo "torch_version=$torch_version" >> "$GITHUB_OUTPUT"
+          echo "torchvision_version=$torchvision_version" >> "$GITHUB_OUTPUT"
+          echo "torchaudio_version=$torchaudio_version" >> "$GITHUB_OUTPUT"
+          echo "triton_version=$triton_version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push ollama
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          target: ${{ matrix.target }}
+          target: ollama
           push: true
-          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.tag }}
+          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_tag }}
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
+            ROCM_VERSION=${{ steps.meta.outputs.rocm_version }}
+            GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
+            TORCH_VERSION=${{ steps.meta.outputs.torch_version }}
+            TORCHVISION_VERSION=${{ steps.meta.outputs.torchvision_version }}
+            TORCHAUDIO_VERSION=${{ steps.meta.outputs.torchaudio_version }}
+            TRITON_VERSION=${{ steps.meta.outputs.triton_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push comfyui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: comfyui
+          push: true
+          tags: ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_tag }}
+          build-args: |
+            ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
+            ROCM_VERSION=${{ steps.meta.outputs.rocm_version }}
+            GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
+            TORCH_VERSION=${{ steps.meta.outputs.torch_version }}
+            TORCHVISION_VERSION=${{ steps.meta.outputs.torchvision_version }}
+            TORCHAUDIO_VERSION=${{ steps.meta.outputs.torchaudio_version }}
+            TRITON_VERSION=${{ steps.meta.outputs.triton_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
