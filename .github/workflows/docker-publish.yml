@@ -84,9 +84,6 @@ jobs:
             image_name="${{ secrets.DOCKERHUB_USERNAME }}/rocm"
           fi
 
-          ollama_tag="${{ github.event.inputs.ollama_tag }}"
-          comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
-
           rocm_downloads_url="${{ github.event.inputs.rocm_downloads_url }}"
           if [ -z "$rocm_downloads_url" ]; then
             rocm_downloads_url="https://rocm.nightlies.amd.com/v2/gfx110X-all/"
@@ -95,14 +92,6 @@ jobs:
           rocm_version="${{ github.event.inputs.rocm_version }}"
           if [ -z "$rocm_version" ]; then
             rocm_version="7.13.0a20260416"
-          fi
-
-          if [ -z "$ollama_tag" ]; then
-            ollama_tag="${rocm_version}-ollama"
-          fi
-
-          if [ -z "$comfyui_tag" ]; then
-            comfyui_tag="${rocm_version}-${torch_version}-comfyui"
           fi
 
           gpu_arch="${{ github.event.inputs.gpu_arch }}"
@@ -128,6 +117,16 @@ jobs:
           triton_version="${{ github.event.inputs.triton_version }}"
           if [ -z "$triton_version" ]; then
             triton_version="3.6.0+rocm7.13.0a20260416"
+          fi
+
+          ollama_tag="${{ github.event.inputs.ollama_tag }}"
+          if [ -z "$ollama_tag" ]; then
+            ollama_tag="${rocm_version}-ollama"
+          fi
+
+          comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
+          if [ -z "$comfyui_tag" ]; then
+            comfyui_tag="${rocm_version}-${torch_version}-comfyui"
           fi
 
           echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
