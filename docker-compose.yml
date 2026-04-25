@@ -32,11 +32,34 @@ services:
       - ./volumes/comfyui/output:/opt/ComfyUI/output
       - ./volumes/comfyui/custom_nodes:/opt/ComfyUI/custom_nodes
       - ./volumes/comfyui/user:/opt/ComfyUI/user
+      - /root/.venv
+      - /root/.config
+      - /root/.cache
+      - /root/.triton
+    environment:
+      # PYTORCH_TUNABLEOP_TUNING: 1
+      # PYTORCH_TUNABLEOP_VERBOSE: 2
+      # MIOPEN_FIND_MODE: 1
+      # MIOPEN_FIND_ENFORCE: 3
+      # MIOPEN_LOG_LEVEL: 5
+      # FLASH_ATTENTION_TRITON_AMD_AUTOTUNE: "TRUE"
     command:
       - python
       - main.py
       - --use-sage-attention
+      #- --use-flash-attention
+      #- --use-pytorch-cross-attention
+      #- --use-quad-cross-attention
+      #- --use-split-cross-attention
+      #- --disable-smart-memory
+      - --disable-pinned-memory
+      #- --disable-async-offload
+      - --reserve-vram
+      - "0.8"
       - --lowvram
+      #- --normalvram
+      #- --gpu-only
+      #- --cpu-vae
       - --listen
       - 0.0.0.0
       - --port

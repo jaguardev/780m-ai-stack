@@ -93,8 +93,6 @@ RUN go build -o ollama .
 
 FROM rocm as ollama
 
-VOLUME [ "/root/.ollama" ]
-
 COPY --from=ollama-builder /root/ollama/ollama /usr/local/bin/ollama
 COPY --from=ollama-builder /root/ollama/build/lib/ollama /usr/local/lib/ollama
 
@@ -114,8 +112,6 @@ ARG TORCHVISION_VERSION
 ARG TORCHAUDIO_VERSION
 ARG TRITON_VERSION
 
-VOLUME [ "/root/.triton" ]
-
 RUN apt update && apt install -y --no-install-recommends \
     git \
     python3-venv \
@@ -131,11 +127,14 @@ RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
     torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} torchaudio==${TORCHAUDIO_VERSION} triton==${TRITON_VERSION}
 
-RUN git clone -b main_perf https://github.com/ROCm/flash-attention.git \
-    && cd flash-attention \
-    && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE MAX_JOBS=4 python setup.py install \
-    && cd .. \
-    && rm -rf flash-attention
+RUN git clone --recursive -b main_perf https://github.com/ROCm/flash-attention.git /tmp/flash-attention \
+    && mkdir -p /tmp/wheels \
+    && python -m pip wheel --no-build-isolation --no-deps /tmp/flash-attention/third_party/aiter -w /tmp/wheels \
+    && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE MAX_JOBS=4 \
+       python -m pip wheel --no-build-isolation --no-deps /tmp/flash-attention -w /tmp/wheels \
+    && python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels --no-deps amd-aiter \
+    && python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels --no-deps flash-attn \
+    && rm -rf /tmp/flash-attention /tmp/wheels
 
 RUN pip install --no-cache-dir \
     https://github.com/guinmoon/SageAttention-Rocm7/releases/download/v1.0.6_rocm7/sageattention-1.0.6-py3-none-any.whl
@@ -158,25 +157,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 # this manager does not work well. will install it from github release instead.
 # RUN pip install --no-cache-dir -r manager_requirements.txt
 
-# ENV FLASH_ATTENTION_TRITON_AMD_AUTOTUNE=TRUE
-# ENV PYTORCH_TUNABLEOP_ENABLED=1
-ENV FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
-ENV TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+ENV PYTORCH_TUNABLEOP_ENABLED=1
+ENV PYTORCH_TUNABLEOP_TUNING=0
+ENV COMFYUI_ENABLE_MIOPEN=1
 ENV MIOPEN_FIND_MODE=2
-ENV AMD_SERIALIZE_KERNEL=0
-ENV AMD_LOG_LEVEL=0
+ENV MIOPEN_FIND_ENFORCE=1
+ENV FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE"
+ENV TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+ENV AMD_LOG_LEVEL=0      
 ENV TORCH_CUDNN_ENABLED=0
-ENV PYTORCH_HIP_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512,expandable_segments:True
-
-VOLUME [ "/opt/ComfyUI/custom_nodes", "/opt/ComfyUI/models", "/opt/ComfyUI/input", "/opt/ComfyUI/output", "/opt/ComfyUI/user" ]
+ENV AMD_SERIALIZE_KERNEL=0
+ENV HSA_ENABLE_SDMA=0
+ENV HSA_USE_SVM=0
+ENV PYTORCH_HIP_ALLOC_CONF=backend:native,garbage_collection_threshold:0.7,max_split_size_mb:256,expandable_segments:True
 
 EXPOSE 8188
 
-# for middle size models i.e. z-image-turbo
-# CMD ["python", "main.py", "--use-sage-attention", "--gpu-only", "--cpu-vae", "--listen", "0.0.0.0", "--port", "8188"]
-
-# for small models, i.e. z-image-turbo gguf
-# CMD ["python", "main.py", "--use-sage-attention", "--disable-smart-memory", "--reserve-vram", "1", "--gpu-only", "--listen", "0.0.0.0", "--port", "8188"]
-
-# for general case
-CMD ["python", "main.py", "--use-sage-attention", "--lowvram", "--listen", "0.0.0.0", "--port", "8188"]
+CMD ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188"]
