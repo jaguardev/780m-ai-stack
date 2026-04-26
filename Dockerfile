@@ -6,7 +6,7 @@ ARG TORCHVISION_VERSION=0.26.0+rocm7.13.0a20260416
 ARG TORCHAUDIO_VERSION=2.11.0+rocm7.13.0a20260416
 ARG TRITON_VERSION=3.6.0+rocm7.13.0a20260416
 
-FROM ubuntu:26.04 as rocm-devel
+FROM ubuntu:26.04 AS rocm-devel
 
 ARG ROCM_DOWNLOADS_URL
 ARG ROCM_VERSION
@@ -40,7 +40,7 @@ ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_
 ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
 
 
-FROM ubuntu:26.04 as rocm
+FROM ubuntu:26.04 AS rocm
 
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
@@ -51,15 +51,15 @@ RUN apt update && apt install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_core/. /opt/rocm/
-COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_gfx110X_all/lib/. /opt/rocm/lib/
-COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_gfx110X_all/share/. /opt/rocm/share/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_*/lib/. /opt/rocm/lib/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_*/share/. /opt/rocm/share/
 
 ENV ROCM_PATH=/opt/rocm
 ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
 ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
 
 
-FROM rocm-devel as ollama-builder
+FROM rocm-devel AS ollama-builder
 
 ARG GPU_ARCH
 
@@ -91,7 +91,7 @@ RUN cmake --build build --config Release
 RUN go build -o ollama .
 
 
-FROM rocm as ollama
+FROM rocm AS ollama
 
 COPY --from=ollama-builder /root/ollama/ollama /usr/local/bin/ollama
 COPY --from=ollama-builder /root/ollama/build/lib/ollama /usr/local/lib/ollama
@@ -104,7 +104,7 @@ ENTRYPOINT ["/usr/local/bin/ollama"]
 CMD ["serve"]
 
 
-FROM rocm-devel as pytorch
+FROM rocm-devel AS pytorch
 
 ARG ROCM_DOWNLOADS_URL
 ARG TORCH_VERSION
@@ -140,7 +140,7 @@ RUN pip install --no-cache-dir \
     https://github.com/guinmoon/SageAttention-Rocm7/releases/download/v1.0.6_rocm7/sageattention-1.0.6-py3-none-any.whl
 
 
-FROM pytorch as comfyui
+FROM pytorch AS comfyui
 
 RUN apt update && apt install -y --no-install-recommends \
     python3-dev \
