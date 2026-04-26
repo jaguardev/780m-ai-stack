@@ -121,19 +121,19 @@ jobs:
 
           ollama_tag="${{ github.event.inputs.ollama_tag }}"
           if [ -z "$ollama_tag" ]; then
-            ollama_tag="${rocm_version}-ollama"
+            ollama_tag="${rocm_version}-${gpu_arch}-ollama"
           fi
 
           comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
           if [ -z "$comfyui_tag" ]; then
-            comfyui_tag="${rocm_version}-${torch_version}-comfyui"
+            comfyui_tag="${rocm_version}-${torch_version}-${gpu_arch}-comfyui"
           fi
 
           echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
           echo "ollama_tag=$ollama_tag" >> "$GITHUB_OUTPUT"
           echo "comfyui_tag=$comfyui_tag" >> "$GITHUB_OUTPUT"
-          echo "ollama_nightly_tag=nightly-gfx110X-ollama" >> "$GITHUB_OUTPUT"
-          echo "comfyui_nightly_tag=nightly-gfx110X-comfyui" >> "$GITHUB_OUTPUT"
+          echo "ollama_nightly_tag=nightly-${gpu_arch}-ollama" >> "$GITHUB_OUTPUT"
+          echo "comfyui_nightly_tag=nightly-${gpu_arch}-comfyui" >> "$GITHUB_OUTPUT"
           echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
           echo "rocm_version=$rocm_version" >> "$GITHUB_OUTPUT"
           echo "gpu_arch=$gpu_arch" >> "$GITHUB_OUTPUT"
