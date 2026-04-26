@@ -126,7 +126,7 @@ jobs:
 
           comfyui_tag="${{ github.event.inputs.comfyui_tag }}"
           if [ -z "$comfyui_tag" ]; then
-            comfyui_tag="${rocm_version}-${torch_version}-${gpu_arch}-comfyui"
+            comfyui_tag="${rocm_version}-${gpu_arch}-comfyui"
           fi
 
           echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
