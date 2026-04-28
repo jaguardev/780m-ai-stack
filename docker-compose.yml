@@ -36,7 +36,7 @@ services:
       - /root/.config
       - /root/.cache
       - /root/.triton
-    environment:
+    # environment:
       # PYTORCH_TUNABLEOP_TUNING: 1
       # PYTORCH_TUNABLEOP_VERBOSE: 2
       # MIOPEN_FIND_MODE: 1
