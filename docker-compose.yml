@@ -57,6 +57,7 @@ services:
       #- --normalvram
       #- --gpu-only
       #- --cpu-vae
+      #- --enable-triton-backend
       - --listen
       - 0.0.0.0
       - --port
