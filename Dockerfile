@@ -125,6 +125,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
     --pre \
+    "rocm[libraries,devel,${DEVICE_VERSION}]" \
     "torch[${DEVICE_VERSION}]" \
     "torchvision[${DEVICE_VERSION}]" \
     torchaudio \
