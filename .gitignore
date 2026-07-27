@@ -1,3 +1,4 @@
 volumes/
 mynotes.txt
 .codex
+.env
