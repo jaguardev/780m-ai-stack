@@ -1,15 +1,12 @@
-ARG ROCM_DOWNLOADS_URL=https://rocm.nightlies.amd.com/v2/gfx110X-all/
+ARG ROCM_DOWNLOADS_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
 ARG ROCM_VERSION=7.13.0a20260416
-ARG GPU_ARCH=gfx1103
-ARG TORCH_VERSION=2.11.0+rocm7.13.0a20260416
-ARG TORCHVISION_VERSION=0.26.0+rocm7.13.0a20260416
-ARG TORCHAUDIO_VERSION=2.11.0+rocm7.13.0a20260416
-ARG TRITON_VERSION=3.6.0+rocm7.13.0a20260416
+ARG GPU_ARCH=gfx1151
 
 FROM ubuntu:26.04 AS rocm-devel
 
 ARG ROCM_DOWNLOADS_URL
 ARG ROCM_VERSION
+ARG GPU_ARCH
 
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
@@ -32,7 +29,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN pip install --no-cache-dir --index-url ${ROCM_DOWNLOADS_URL} "rocm[libraries,devel]==${ROCM_VERSION}"
+RUN pip install --no-cache-dir --index-url ${ROCM_DOWNLOADS_URL} "rocm[libraries,devel,${GPU_ARCH}]"
 RUN rocm-sdk init
 
 ENV ROCM_PATH=/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel
@@ -107,10 +104,6 @@ CMD ["serve"]
 FROM rocm-devel AS pytorch
 
 ARG ROCM_DOWNLOADS_URL
-ARG TORCH_VERSION
-ARG TORCHVISION_VERSION
-ARG TORCHAUDIO_VERSION
-ARG TRITON_VERSION
 
 RUN apt update && apt install -y --no-install-recommends \
     git \
@@ -125,7 +118,7 @@ RUN pip install --no-cache-dir \
 
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
-    torch==${TORCH_VERSION} torchvision==${TORCHVISION_VERSION} torchaudio==${TORCHAUDIO_VERSION} triton==${TRITON_VERSION}
+    "torch[${GPU_ARCH}]" "torchvision[${GPU_ARCH}]" torchaudio triton
 
 RUN git clone --recursive -b main_perf https://github.com/ROCm/flash-attention.git /tmp/flash-attention \
     && mkdir -p /tmp/wheels \
@@ -145,12 +138,23 @@ FROM pytorch AS comfyui
 RUN apt update && apt install -y --no-install-recommends \
     python3-dev \
     libxcb1 \
+    ffmpeg \
+    sox \
+    portaudio19-dev \
+    libportaudio2 \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI
 
 WORKDIR /opt/ComfyUI
+
+RUN pip install --no-cache-dir sounddevice onnx
 
 RUN pip install --no-cache-dir -r requirements.txt
 

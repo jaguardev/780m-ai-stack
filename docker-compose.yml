@@ -3,16 +3,13 @@ name: ai-stack
 services:
 
   comfyui:
-    image: vladchernikov/rocm:nightly-gfx1103-comfyui
+    image: vladchernikov/rocm:nightly-gfx1151-comfyui
     build:
       context: .
       target: comfyui
       args:
-        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
-        TORCH_VERSION: 2.11.0+rocm7.13.0a20260416
-        TORCHVISION_VERSION: 0.26.0+rocm7.13.0a20260416
-        TORCHAUDIO_VERSION: 2.11.0+rocm7.13.0a20260416
-        TRITON_VERSION: 3.6.0+rocm7.13.0a20260416
+        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
+        GPU_ARCH: gfx1151
     container_name: comfyui
     restart: unless-stopped
     init: true
@@ -52,11 +49,11 @@ services:
       #- --use-quad-cross-attention
       #- --use-split-cross-attention
       #- --disable-smart-memory
-      - --disable-pinned-memory
+      #- --disable-pinned-memory
       #- --disable-async-offload
-      - --reserve-vram
-      - "0.8"
-      - --lowvram
+      #- --reserve-vram
+      #- "0.8"
+      #- --lowvram
       #- --normalvram
       #- --gpu-only
       #- --cpu-vae
@@ -66,14 +63,13 @@ services:
       - "8188"
 
   ollama:
-    image: vladchernikov/rocm:nightly-gfx1103-ollama
+    image: vladchernikov/rocm:nightly-gfx1151-ollama
     build:
       context: .
       target: ollama
       args:
-        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/v2/gfx110X-all/
-        ROCM_VERSION: 7.13.0a20260416
-        GPU_ARCH: gfx1103
+        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
+        GPU_ARCH: gfx1151
     container_name: ollama
     restart: unless-stopped
     init: true
