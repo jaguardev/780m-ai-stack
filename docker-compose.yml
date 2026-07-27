@@ -93,6 +93,7 @@ services:
       OLLAMA_KV_CACHE_TYPE: ${OLLAMA_KV_CACHE_TYPE:-q8_0}
       # Vulkan envs:
       # OLLAMA_VULKAN: "1"
+      # OLLAMA_IGPU_ENABLE: "1"
       # GGML_VK_VISIBLE_DEVICES: "0"
       # ROCm envs:
       GGML_HIP_FORCE_MMQ: "1"
