@@ -1,12 +1,11 @@
 ARG ROCM_DOWNLOADS_URL=https://rocm.nightlies.amd.com/whl-multi-arch/
-ARG ROCM_VERSION=7.13.0a20260416
-ARG GPU_ARCH=gfx1151
+ARG GPU_ARCH=gfx1103
+ARG DEVICE_VERSION=device-gfx1103
 
 FROM ubuntu:26.04 AS rocm-devel
 
 ARG ROCM_DOWNLOADS_URL
-ARG ROCM_VERSION
-ARG GPU_ARCH
+ARG DEVICE_VERSION
 
 RUN apt update && apt install -y --no-install-recommends \
     ca-certificates \
@@ -29,12 +28,18 @@ RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN pip install --no-cache-dir --index-url ${ROCM_DOWNLOADS_URL} "rocm[libraries,devel,${GPU_ARCH}]"
+RUN pip install --no-cache-dir \
+    --index-url ${ROCM_DOWNLOADS_URL} \
+    --pre \
+    "rocm[libraries,devel,${DEVICE_VERSION}]"
+
 RUN rocm-sdk init
 
 ENV ROCM_PATH=/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel
 ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
 ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
+
+RUN ls -la /root/.venv/lib/python3.14/site-packages/
 
 
 FROM ubuntu:26.04 AS rocm
@@ -104,6 +109,7 @@ CMD ["serve"]
 FROM rocm-devel AS pytorch
 
 ARG ROCM_DOWNLOADS_URL
+ARG DEVICE_VERSION
 
 RUN apt update && apt install -y --no-install-recommends \
     git \
@@ -118,13 +124,17 @@ RUN pip install --no-cache-dir \
 
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
-    "torch[${GPU_ARCH}]" "torchvision[${GPU_ARCH}]" torchaudio triton
+    --pre \
+    "torch[${DEVICE_VERSION}]" \
+    "torchvision[${DEVICE_VERSION}]" \
+    torchaudio \
+    triton
 
 RUN git clone --recursive -b main_perf https://github.com/ROCm/flash-attention.git /tmp/flash-attention \
     && mkdir -p /tmp/wheels \
     && python -m pip wheel --no-build-isolation --no-deps /tmp/flash-attention/third_party/aiter -w /tmp/wheels \
     && FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE MAX_JOBS=4 \
-       python -m pip wheel --no-build-isolation --no-deps /tmp/flash-attention -w /tmp/wheels \
+    python -m pip wheel --no-build-isolation --no-deps /tmp/flash-attention -w /tmp/wheels \
     && python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels --no-deps amd-aiter \
     && python -m pip install --no-cache-dir --no-index --find-links=/tmp/wheels --no-deps flash-attn \
     && rm -rf /tmp/flash-attention /tmp/wheels

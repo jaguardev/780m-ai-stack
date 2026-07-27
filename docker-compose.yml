@@ -3,13 +3,13 @@ name: ai-stack
 services:
 
   comfyui:
-    image: vladchernikov/rocm:nightly-gfx1151-comfyui
+    image: vladchernikov/rocm:nightly-gfx1103-comfyui
     build:
       context: .
       target: comfyui
       args:
         ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
-        GPU_ARCH: gfx1151
+        DEVICE_VERSION: device-gfx1103
     container_name: comfyui
     restart: unless-stopped
     init: true
@@ -63,13 +63,14 @@ services:
       - "8188"
 
   ollama:
-    image: vladchernikov/rocm:nightly-gfx1151-ollama
+    image: vladchernikov/rocm:nightly-gfx1103-ollama
     build:
       context: .
       target: ollama
       args:
         ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
-        GPU_ARCH: gfx1151
+        GPU_ARCH: gfx1103
+        DEVICE_VERSION: device-gfx1103
     container_name: ollama
     restart: unless-stopped
     init: true

@@ -26,7 +26,12 @@ on:
       gpu_arch:
         description: "GPU architecture"
         required: false
-        default: "gfx1151"
+        default: "gfx1103"
+        type: string
+      device_version:
+        description: "PyTorch device extra (defaults to device-<gpu_arch>)"
+        required: false
+        default: ""
         type: string
 jobs:
   docker:
@@ -65,7 +70,12 @@ jobs:
 
           gpu_arch="${{ github.event.inputs.gpu_arch }}"
           if [ -z "$gpu_arch" ]; then
-            gpu_arch="gfx1151"
+            gpu_arch="gfx1103"
+          fi
+
+          device_version="${{ github.event.inputs.device_version }}"
+          if [ -z "$device_version" ]; then
+            device_version="device-${gpu_arch}"
           fi
 
           ollama_tag="${{ github.event.inputs.ollama_tag }}"
@@ -85,6 +95,7 @@ jobs:
           echo "comfyui_nightly_tag=nightly-${gpu_arch}-comfyui" >> "$GITHUB_OUTPUT"
           echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
           echo "gpu_arch=$gpu_arch" >> "$GITHUB_OUTPUT"
+          echo "device_version=$device_version" >> "$GITHUB_OUTPUT"
 
       - name: Build and push ollama
         uses: docker/build-push-action@v6
@@ -99,6 +110,7 @@ jobs:
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
+            DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -114,6 +126,6 @@ jobs:
             ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_nightly_tag }}
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
-            GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
+            DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
