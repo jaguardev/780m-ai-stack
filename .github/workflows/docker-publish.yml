@@ -39,9 +39,15 @@ concurrency:
 
 jobs:
   docker:
-    name: Build and Push Docker Images
+    name: Build and Push ${{ matrix.target }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - ollama
+          - comfyui
 
     permissions:
       contents: read
@@ -49,6 +55,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL
+
+          echo "Disk space after cleanup:"
+          df -h
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -93,44 +115,42 @@ jobs:
             comfyui_tag="${gpu_arch}-comfyui"
           fi
 
+          target="${{ matrix.target }}"
+          if [ "$target" = "ollama" ]; then
+            target_tag="$ollama_tag"
+            nightly_tag="nightly-${gpu_arch}-ollama"
+          else
+            target_tag="$comfyui_tag"
+            nightly_tag="nightly-${gpu_arch}-comfyui"
+          fi
+
           echo "image_name=$image_name" >> "$GITHUB_OUTPUT"
-          echo "ollama_tag=$ollama_tag" >> "$GITHUB_OUTPUT"
-          echo "comfyui_tag=$comfyui_tag" >> "$GITHUB_OUTPUT"
-          echo "ollama_nightly_tag=nightly-${gpu_arch}-ollama" >> "$GITHUB_OUTPUT"
-          echo "comfyui_nightly_tag=nightly-${gpu_arch}-comfyui" >> "$GITHUB_OUTPUT"
+          echo "target_tag=$target_tag" >> "$GITHUB_OUTPUT"
+          echo "nightly_tag=$nightly_tag" >> "$GITHUB_OUTPUT"
           echo "rocm_downloads_url=$rocm_downloads_url" >> "$GITHUB_OUTPUT"
           echo "gpu_arch=$gpu_arch" >> "$GITHUB_OUTPUT"
           echo "device_version=$device_version" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push ollama
+      - name: Build and push ${{ matrix.target }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          target: ollama
+          target: ${{ matrix.target }}
           push: true
           tags: |
-            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_tag }}
-            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.ollama_nightly_tag }}
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.target_tag }}
+            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.nightly_tag }}
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
             DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
-          cache-from: type=gha,scope=ollama-${{ steps.meta.outputs.gpu_arch }}
-          cache-to: type=gha,mode=min,scope=ollama-${{ steps.meta.outputs.gpu_arch }}
+          cache-from: type=gha,scope=${{ matrix.target }}-${{ steps.meta.outputs.gpu_arch }}
+          cache-to: type=gha,mode=min,scope=${{ matrix.target }}-${{ steps.meta.outputs.gpu_arch }}
 
-      - name: Build and push comfyui
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          target: comfyui
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_tag }}
-            ${{ steps.meta.outputs.image_name }}:${{ steps.meta.outputs.comfyui_nightly_tag }}
-          build-args: |
-            ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
-            DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
-          cache-from: type=gha,scope=comfyui-${{ steps.meta.outputs.gpu_arch }}
-          cache-to: type=gha,mode=min,scope=comfyui-${{ steps.meta.outputs.gpu_arch }}
+      - name: Show final disk usage
+        if: always()
+        shell: bash
+        run: |
+          df -h
+          docker system df
