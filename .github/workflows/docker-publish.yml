@@ -3,6 +3,15 @@ name: Build and Push Docker Images
 on:
   workflow_dispatch:
     inputs:
+      build_target:
+        description: "Image target to build"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - ollama
+          - comfyui
       image_name:
         description: "Docker image name (without tag)"
         required: false
@@ -45,9 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - ollama
-          - comfyui
+        target: ${{ fromJSON(inputs.build_target == 'all' && '["ollama","comfyui"]' || format('["{0}"]', inputs.build_target)) }}
 
     permissions:
       contents: read
