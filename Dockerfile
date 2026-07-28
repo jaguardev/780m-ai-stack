@@ -89,7 +89,7 @@ RUN cmake -B build -G Ninja \
     -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_INSTALL_RPATH=$ROCM_PATH/lib:$ROCM_PATH/lib/rocm_sysdeps/lib
 
-RUN cmake --build build --config Release
+RUN cmake --build build --config Release --parallel 2
 
 RUN go build -o ollama .
 

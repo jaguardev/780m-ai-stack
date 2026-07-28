@@ -72,6 +72,16 @@ jobs:
           echo "Disk space after cleanup:"
           df -h
 
+      - name: Add swap for Ollama build
+        if: matrix.target == 'ollama'
+        shell: bash
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
