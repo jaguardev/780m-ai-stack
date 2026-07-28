@@ -30,13 +30,13 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
-    --pre \
+#    --pre \
     "rocm[libraries,devel,${DEVICE_VERSION}]"
 
 RUN rocm-sdk init
 
 ENV ROCM_PATH=/root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel
-ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/llvm/lib:$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
 ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
 
 RUN ls -la /root/.venv/lib/python3.14/site-packages/
@@ -55,9 +55,11 @@ RUN apt update && apt install -y --no-install-recommends \
 COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_core/. /opt/rocm/
 COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_*/lib/. /opt/rocm/lib/
 COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_libraries_*/share/. /opt/rocm/share/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_device_*/. /opt/rocm/
+COPY --from=rocm-devel /root/.venv/lib/python3.14/site-packages/_rocm_sdk_devel/. /opt/rocm/
 
 ENV ROCM_PATH=/opt/rocm
-ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$ROCM_PATH/lib/llvm/lib:$ROCM_PATH/lib/rocm_sysdeps/lib:$ROCM_PATH/lib/:$LD_LIBRARY_PATH
 ENV PATH=$ROCM_PATH/lib/llvm/bin:$ROCM_PATH/bin:$PATH
 
 
@@ -82,9 +84,8 @@ WORKDIR /root/ollama
 RUN cmake -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH=$ROCM_PATH \
-    -DCMAKE_HIP_PLATFORM=amd \
-    -DGPU_TARGETS=${GPU_ARCH} \
-    -DGGML_HIP=ON \
+    -DAMDGPU_TARGETS=${GPU_ARCH} \
+    -DOLLAMA_LLAMA_BACKENDS=rocm_v7_2 \
     -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_INSTALL_RPATH=$ROCM_PATH/lib:$ROCM_PATH/lib/rocm_sysdeps/lib
 
@@ -124,7 +125,7 @@ RUN pip install --no-cache-dir \
 
 RUN pip install --no-cache-dir \
     --index-url ${ROCM_DOWNLOADS_URL} \
-    --pre \
+#    --pre \
     "rocm[libraries,devel,${DEVICE_VERSION}]" \
     "torch[${DEVICE_VERSION}]" \
     "torchvision[${DEVICE_VERSION}]" \
@@ -165,12 +166,11 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI
 
 WORKDIR /opt/ComfyUI
 
-RUN pip install --no-cache-dir sounddevice onnx
+RUN pip install --no-cache-dir sounddevice onnx matrix-nio
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# this manager does not work well. will install it from github release instead.
-# RUN pip install --no-cache-dir -r manager_requirements.txt
+RUN pip install --no-cache-dir -r manager_requirements.txt
 
 ENV PYTORCH_TUNABLEOP_ENABLED=1
 ENV PYTORCH_TUNABLEOP_TUNING=0

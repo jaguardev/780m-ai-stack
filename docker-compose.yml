@@ -43,6 +43,7 @@ services:
     command:
       - python
       - main.py
+      - --enable-manager
       - --use-sage-attention
       #- --use-flash-attention
       #- --use-pytorch-cross-attention

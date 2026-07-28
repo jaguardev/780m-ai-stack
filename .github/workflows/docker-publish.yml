@@ -33,10 +33,15 @@ on:
         required: false
         default: ""
         type: string
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   docker:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
+    timeout-minutes: 90
 
     permissions:
       contents: read
@@ -111,8 +116,8 @@ jobs:
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             GPU_ARCH=${{ steps.meta.outputs.gpu_arch }}
             DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=ollama-${{ steps.meta.outputs.gpu_arch }}
+          cache-to: type=gha,mode=min,scope=ollama-${{ steps.meta.outputs.gpu_arch }}
 
       - name: Build and push comfyui
         uses: docker/build-push-action@v6
@@ -127,5 +132,5 @@ jobs:
           build-args: |
             ROCM_DOWNLOADS_URL=${{ steps.meta.outputs.rocm_downloads_url }}
             DEVICE_VERSION=${{ steps.meta.outputs.device_version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=comfyui-${{ steps.meta.outputs.gpu_arch }}
+          cache-to: type=gha,mode=min,scope=comfyui-${{ steps.meta.outputs.gpu_arch }}
