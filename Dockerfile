@@ -14,6 +14,7 @@ RUN apt update && apt install -y --no-install-recommends \
     libgfortran5 \
     libatomic1 \
     libquadmath0 \
+    perl \
     python3-venv \
     python3-pip \
     && apt clean \
@@ -166,12 +167,20 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI
 
 WORKDIR /opt/ComfyUI
 
-RUN pip install --no-cache-dir sounddevice onnx matrix-nio
+RUN pip install --no-cache-dir \
+    sounddevice \
+    onnx \
+    matrix-nio \
+    opencv-python-headless \
+    diffusers \
+    soundfile \
+    deepdiff
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip install --no-cache-dir -r manager_requirements.txt
 
+ENV PYTORCH_TUNABLEOP_FILENAME=/opt/ComfyUI/user/tunableop_results.csv
 ENV PYTORCH_TUNABLEOP_ENABLED=1
 ENV PYTORCH_TUNABLEOP_TUNING=0
 ENV COMFYUI_ENABLE_MIOPEN=1

@@ -8,7 +8,7 @@ services:
       context: .
       target: comfyui
       args:
-        ROCM_DOWNLOADS_URL: https://rocm.nightlies.amd.com/whl-multi-arch/
+        ROCM_DOWNLOADS_URL: ${ROCM_DOWNLOADS_URL:-https://rocm.nightlies.amd.com/whl-multi-arch/}
         DEVICE_VERSION: device-${GPU_ARCH:-gfx1103}
     container_name: comfyui
     restart: unless-stopped
@@ -44,16 +44,18 @@ services:
       - python
       - main.py
       - --enable-manager
-      - --use-sage-attention
+      - --enable-manager-legacy-ui
+      - --use-ck-attention
+      #- --use-sage-attention
       #- --use-flash-attention
       #- --use-pytorch-cross-attention
       #- --use-quad-cross-attention
       #- --use-split-cross-attention
       #- --disable-smart-memory
-      #- --disable-pinned-memory
-      #- --disable-async-offload
-      #- --reserve-vram
-      #- "0.8"
+      - --disable-pinned-memory
+      - --disable-async-offload
+      - --reserve-vram
+      - "0.8"
       #- --lowvram
       #- --normalvram
       #- --gpu-only
